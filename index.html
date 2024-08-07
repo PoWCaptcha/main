@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>帮助我们战胜机器人</title>
+  <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css">
+  <style>
+    .center {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+  </style>
+</head>
+
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+  <div class="center">
+    <div class="mdui-card" style="width: 400px;">
+      <div class="mdui-card-primary">
+        <div class="mdui-card-primary-title">帮助我们战胜机器人</div>
+        <div class="mdui-card-primary-subtitle">Nightly 1 | 使用PoW工作量证明确认你是人类</div>
+      </div>
+      <div class="mdui-card-content">
+        <div class="mdui-textfield">
+          <input class="mdui-textfield-input" type="text" id="dataInput"
+            placeholder="[Nightly ONLY]输入数据（默认：Hello World）" />
+        </div>
+        <div class="mdui-textfield">
+          <input class="mdui-textfield-input" type="number" id="difficultyInput"
+            placeholder="[Nightly ONLY]难度（1-8，默认：4）" min="1" max="8" value="4" />
+        </div>
+        <div class="mdui-progress">
+          <div id="progress" class="mdui-progress-indeterminate" style="display: none;"></div>
+        </div>
+        <p id="status">等待开始...</p>
+        <p id="eta"></p>
+        <p id="nonce"></p>
+        <p id="hash"></p>
+      </div>
+      <div class="mdui-card-actions">
+        <button id="startBtn" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">开始挖矿</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const progressBar = document.getElementById('progress');
+    const statusText = document.getElementById('status');
+    const etaText = document.getElementById('eta');
+    const nonceText = document.getElementById('nonce');
+    const hashText = document.getElementById('hash');
+    const dataInput = document.getElementById('dataInput');
+    const difficultyInput = document.getElementById('difficultyInput');
+
+    startBtn.addEventListener('click', startProofOfWork);
+
+    function startProofOfWork() {
+      startBtn.disabled = true;
+      progressBar.style.display = 'block';
+      statusText.textContent = "正在进行工作量证明...";
+      etaText.textContent = "计算ETA中...";
+      nonceText.textContent = "";
+      hashText.textContent = "";
+
+      const data = dataInput.value || "Hello World";
+      const difficulty = parseInt(difficultyInput.value) || 5;
+      const target = "0".repeat(difficulty);
+      let nonce = 0;
+      const startTime = Date.now();
+      let lastUpdateTime = startTime;
+      let lastUpdateNonce = 0;
+
+      function updateETA() {
+        const currentTime = Date.now();
+        const elapsedTime = (currentTime - lastUpdateTime) / 1000; // 秒
+        const hashRate = (nonce - lastUpdateNonce) / elapsedTime;
+        const remainingHashes = Math.pow(16, difficulty) - nonce;
+        const estimatedTimeRemaining = remainingHashes / hashRate;
+
+        const etaDate = new Date(currentTime + estimatedTimeRemaining * 1000);
+        statusText.textContent = `尝试次数: ${nonce.toLocaleString()}`;
+        etaText.textContent = `预计完成时间: ${etaDate.toLocaleTimeString()}`;
+        etaText.title = `哈希率: ${hashRate.toFixed(2)} H/s`;
+
+        lastUpdateTime = currentTime;
+        lastUpdateNonce = nonce;
+      }
+
+      function mine() {
+        const hash = sha256(data + nonce);
+
+        if (hash.startsWith(target)) {
+          const endTime = Date.now();
+          const duration = (endTime - startTime) / 1000; // 转换为秒
+          progressBar.style.display = 'none';
+          statusText.textContent = `工作量证明完成! 用时: ${duration.toFixed(2)}秒`;
+          etaText.textContent = "";
+          nonceText.textContent = `Nonce: ${nonce.toLocaleString()}`;
+          hashText.textContent = `Hash: ${hash}`;
+          startBtn.textContent = '验证成功';
+          startBtn.classList.remove('mdui-color-theme-accent');
+          startBtn.classList.add('mdui-color-green');
+          clearInterval(etaInterval);
+        } else {
+          nonce++;
+          requestAnimationFrame(mine);
+        }
+      }
+
+      // 开始挖矿
+      requestAnimationFrame(mine);
+
+      // 每秒更新一次ETA
+      const etaInterval = setInterval(updateETA, 1000);
+    }
+  </script>
+</body>
+
+</html>
