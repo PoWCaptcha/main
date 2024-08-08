@@ -104,9 +104,12 @@
           etaText.textContent = "";
           nonceText.textContent = `Nonce: ${nonce.toLocaleString()}`;
           hashText.textContent = `Hash: ${hash}`;
-          startBtn.textContent = '验证成功';
+          startBtn.textContent = '继续';
           startBtn.classList.remove('mdui-color-theme-accent');
           startBtn.classList.add('mdui-color-green');
+          startBtn.addEventListener('click', () => {
+            window.location.href = 'https://dqjl.eu.org';
+          });
           clearInterval(etaInterval);
           startBtn.disabled = false;
         } else {
