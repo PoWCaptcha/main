@@ -70,7 +70,7 @@
       hashText.textContent = "";
 
       const data = dataInput.value || "Hello World";
-      const difficulty = parseInt(difficultyInput.value) || 5;
+      const difficulty = parseInt(difficultyInput.value) || 4;
       const target = "0".repeat(difficulty);
       let nonce = 0;
       const startTime = Date.now();
@@ -108,6 +108,7 @@
           startBtn.classList.remove('mdui-color-theme-accent');
           startBtn.classList.add('mdui-color-green');
           clearInterval(etaInterval);
+          startBtn.disabled = false;
         } else {
           nonce++;
           requestAnimationFrame(mine);
