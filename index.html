@@ -21,7 +21,7 @@
     <div class="mdui-card" style="width: 400px;">
       <div class="mdui-card-primary">
         <div class="mdui-card-primary-title">帮助我们战胜机器人</div>
-        <div class="mdui-card-primary-subtitle">Nightly 1 | 使用PoW工作量证明确认你是人类</div>
+        <div class="mdui-card-primary-subtitle">Nightly | 使用PoW工作量证明确认你是人类</div>
       </div>
       <div class="mdui-card-content">
         <div class="mdui-textfield">
@@ -80,46 +80,53 @@
       function updateETA() {
         const currentTime = Date.now();
         const elapsedTime = (currentTime - lastUpdateTime) / 1000; // 秒
-        const hashRate = (nonce - lastUpdateNonce) / elapsedTime;
+        const totalElapsedTime = (currentTime - startTime) / 1000; // 总秒数
+        const hashesSinceLastUpdate = nonce - lastUpdateNonce;
+        const hashRate = hashesSinceLastUpdate / elapsedTime;
+        const averageHashRate = nonce / totalElapsedTime;
         const remainingHashes = Math.pow(16, difficulty) - nonce;
         const estimatedTimeRemaining = remainingHashes / hashRate;
 
         const etaDate = new Date(currentTime + estimatedTimeRemaining * 1000);
         statusText.textContent = `尝试次数: ${nonce.toLocaleString()}`;
         etaText.textContent = `预计完成时间: ${etaDate.toLocaleTimeString()}`;
-        etaText.title = `哈希率: ${hashRate.toFixed(2)} H/s`;
+        etaText.title = `当前哈希率: ${hashRate.toFixed(2)} H/s, 平均哈希率: ${averageHashRate.toFixed(2)} H/s`;
 
         lastUpdateTime = currentTime;
         lastUpdateNonce = nonce;
       }
 
       function mine() {
-        const hash = sha256(data + nonce);
-
-        if (hash.startsWith(target)) {
-          const endTime = Date.now();
-          const duration = (endTime - startTime) / 1000; // 转换为秒
-          progressBar.style.display = 'none';
-          statusText.textContent = `工作量证明完成! 用时: ${duration.toFixed(2)}秒`;
-          etaText.textContent = "";
-          nonceText.textContent = `Nonce: ${nonce.toLocaleString()}`;
-          hashText.textContent = `Hash: ${hash}`;
-          startBtn.textContent = '继续';
-          startBtn.classList.remove('mdui-color-theme-accent');
-          startBtn.classList.add('mdui-color-green');
-          startBtn.addEventListener('click', () => {
-            window.location.href = 'https://dqjl.eu.org';
-          });
-          clearInterval(etaInterval);
-          startBtn.disabled = false;
-        } else {
-          nonce++;
-          requestAnimationFrame(mine);
+        const batchSize = 10000;
+        for (let i = 0; i < batchSize; i++) {
+          const hash = sha256(data + nonce);
+          if (hash.startsWith(target)) {
+            const endTime = Date.now();
+            const duration = (endTime - startTime) / 1000; // 转换为秒
+            progressBar.style.display = 'none';
+            statusText.textContent = `工作量证明完成! 用时: ${duration.toFixed(2)}秒`;
+            etaText.textContent = "";
+            nonceText.textContent = `Nonce: ${nonce.toLocaleString()}`;
+            hashText.textContent = `Hash: ${hash}`;
+            startBtn.textContent = '继续';
+            startBtn.classList.remove('mdui-color-theme-accent');
+            startBtn.classList.add('mdui-color-green');
+            startBtn.disabled = false;
+            startBtn.onclick = () => {
+              window.location.href = 'https://dqjl.eu.org';
+            };
+            clearInterval(etaInterval);
+            return;
+          } else {
+            nonce++;
+          }
         }
+        // 继续挖矿
+        setTimeout(mine, 0);
       }
 
       // 开始挖矿
-      requestAnimationFrame(mine);
+      mine();
 
       // 每秒更新一次ETA
       const etaInterval = setInterval(updateETA, 1000);
