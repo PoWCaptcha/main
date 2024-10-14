@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>验证哈希有效性</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdui/dist/css/mdui.min.css">
+  <style>
+    .center {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+  </style>
+</head>
+
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+  <div class="center">
+    <div class="mdui-card" style="width: 400px;">
+      <div class="mdui-card-primary">
+        <div class="mdui-card-primary-title">验证哈希有效性</div>
+        <div class="mdui-card-primary-subtitle">检查您的工作量证明结果</div>
+      </div>
+      <div class="mdui-card-content">
+        <div class="mdui-textfield">
+          <label class="mdui-textfield-label">数据（固定值）</label>
+          <input class="mdui-textfield-input" type="text" id="dataInput" value="灯确吉L" readonly />
+        </div>
+        <div class="mdui-textfield">
+          <label class="mdui-textfield-label">难度</label>
+          <input class="mdui-textfield-input" type="number" id="difficultyInput" placeholder="难度（大于0的数字，默认：100000）" min="1" step="1" value="100000" />
+        </div>
+        <div class="mdui-textfield">
+          <label class="mdui-textfield-label">Nonce</label>
+          <input class="mdui-textfield-input" type="number" id="nonceInput" placeholder="请输入您获得的Nonce值" min="0" step="1" />
+        </div>
+        <div class="mdui-textfield">
+          <label class="mdui-textfield-label">Hash</label>
+          <input class="mdui-textfield-input" type="text" id="hashInput" placeholder="请输入您获得的哈希值" />
+        </div>
+        <p id="status">等待验证...</p>
+      </div>
+      <div class="mdui-card-actions">
+        <button id="checkBtn" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">验证哈希</button>
+        <button id="proceedBtn" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-green" style="display: none;">继续</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mdui/dist/js/mdui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+
+  <script>
+    const checkBtn = document.getElementById('checkBtn');
+    const proceedBtn = document.getElementById('proceedBtn');
+    const statusText = document.getElementById('status');
+    const dataInput = document.getElementById('dataInput');
+    const difficultyInput = document.getElementById('difficultyInput');
+    const nonceInput = document.getElementById('nonceInput');
+    const hashInput = document.getElementById('hashInput');
+
+    checkBtn.addEventListener('click', checkHash);
+    proceedBtn.addEventListener('click', () => {
+      window.location.href = 'https://dqjl.eu.org';
+    });
+
+    function checkHash() {
+      const data = dataInput.value;
+      const difficulty = parseFloat(difficultyInput.value) || 100000;
+      const nonce = nonceInput.value;
+      const hash = hashInput.value;
+
+      if (!nonce || !hash) {
+        statusText.textContent = '请输入Nonce和哈希值。';
+        statusText.style.color = 'red';
+        return;
+      }
+
+      // 计算目标值
+      const maxTarget = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"); // 2^256 - 1
+      const target = maxTarget / BigInt(difficulty);
+
+      // 计算输入的Nonce和数据的哈希值
+      const calculatedHash = sha256(data + nonce);
+
+      if (calculatedHash !== hash) {
+        statusText.textContent = '哈希值与Nonce和数据不匹配。';
+        statusText.style.color = 'red';
+        return;
+      }
+
+      const hashValue = BigInt('0x' + calculatedHash);
+
+      if (hashValue <= target) {
+        statusText.textContent = '验证成功！哈希有效。';
+        statusText.style.color = 'green';
+        proceedBtn.style.display = 'inline-block';
+        checkBtn.style.display = 'none';
+      } else {
+        statusText.textContent = '验证失败。哈希值未达到目标难度。';
+        statusText.style.color = 'red';
+      }
+    }
+  </script>
+</body>
+
+</html>
