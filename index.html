@@ -13,6 +13,12 @@
       align-items: center;
       min-height: 100vh;
     }
+
+    .hash-display {
+      word-wrap: break-word;
+      word-break: break-all;
+      overflow-wrap: break-word;
+    }
   </style>
 </head>
 
@@ -24,17 +30,13 @@
         <div class="mdui-card-primary-subtitle">使用工作量证明确认你是人类</div>
       </div>
       <div class="mdui-card-content">
-        <div class="mdui-textfield">
-          <input class="mdui-textfield-input" type="number" id="difficultyInput"
-            placeholder="难度（大于0的数字，默认：100000）" min="1" step="1" value="100000" />
-        </div>
         <div class="mdui-progress">
           <div id="progress" class="mdui-progress-indeterminate" style="display: none;"></div>
         </div>
         <p id="status">等待开始...</p>
         <p id="eta"></p>
         <p id="nonce"></p>
-        <p id="hash"></p>
+        <p id="hash" class="hash-display"></p>
       </div>
       <div class="mdui-card-actions">
         <button id="startBtn" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">开始挖矿</button>
@@ -54,7 +56,6 @@
     const etaText = document.getElementById('eta');
     const nonceText = document.getElementById('nonce');
     const hashText = document.getElementById('hash');
-    const difficultyInput = document.getElementById('difficultyInput');
 
     let worker;
     let mining = false;
@@ -77,7 +78,7 @@
       nonceText.textContent = "";
       hashText.textContent = "";
 
-      const difficulty = parseFloat(difficultyInput.value) || 100000;
+      const difficulty = 1500000;
 
       if (worker) {
         worker.terminate();
@@ -98,19 +99,12 @@
         if (data.type === 'result') {
           mining = false;
           progressBar.style.display = 'none';
-          statusText.textContent = `工作量证明完成! 用时: ${data.duration.toFixed(2)}秒`;
+          statusText.textContent = "";
           etaText.textContent = "";
           nonceText.textContent = `Nonce: ${data.nonce.toLocaleString()}`;
           hashText.textContent = `Hash: ${data.hash}`;
-          startBtn.textContent = '继续';
-          startBtn.classList.remove('mdui-color-theme-accent');
-          startBtn.classList.add('mdui-color-green');
-          startBtn.disabled = false;
+          startBtn.style.display = 'none';
           pauseBtn.style.display = 'none';
-
-          startBtn.onclick = () => {
-            window.location.href = 'https://dqjl.eu.org';
-          };
         }
       };
     }
