@@ -5,13 +5,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>帮助我们战胜机器人</title>
-  <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdui/dist/css/mdui.min.css">
   <style>
     .center {
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
     }
   </style>
 </head>
@@ -21,7 +21,7 @@
     <div class="mdui-card" style="width: 400px;">
       <div class="mdui-card-primary">
         <div class="mdui-card-primary-title">帮助我们战胜机器人</div>
-        <div class="mdui-card-primary-subtitle">使用PoW工作量证明确认你是人类</div>
+        <div class="mdui-card-primary-subtitle">使用工作量证明确认你是人类</div>
       </div>
       <div class="mdui-card-content">
         <div class="mdui-textfield">
@@ -38,15 +38,17 @@
       </div>
       <div class="mdui-card-actions">
         <button id="startBtn" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">开始挖矿</button>
+        <button id="pauseBtn" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-orange" style="display: none;">暂停</button>
       </div>
     </div>
   </div>
 
-  <script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mdui/dist/js/mdui.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
 
   <script>
     const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
     const progressBar = document.getElementById('progress');
     const statusText = document.getElementById('status');
     const etaText = document.getElementById('eta');
@@ -54,78 +56,79 @@
     const hashText = document.getElementById('hash');
     const difficultyInput = document.getElementById('difficultyInput');
 
+    let worker;
+    let mining = false;
+    let paused = false;
+
     startBtn.addEventListener('click', startProofOfWork);
+    pauseBtn.addEventListener('click', pauseOrResume);
 
     function startProofOfWork() {
+      if (mining) return;
+
+      mining = true;
+      paused = false;
       startBtn.disabled = true;
+      pauseBtn.style.display = 'inline-block';
+      pauseBtn.textContent = '暂停';
       progressBar.style.display = 'block';
       statusText.textContent = "正在进行工作量证明...";
       etaText.textContent = "计算ETA中...";
       nonceText.textContent = "";
       hashText.textContent = "";
 
-      const data = "灯确吉L"; // 固定的数据
       const difficulty = parseFloat(difficultyInput.value) || 100000;
-      const maxTarget = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"); // 2^256 - 1
-      const target = maxTarget / BigInt(difficulty);
-      let nonce = 0;
-      const startTime = Date.now();
-      let lastUpdateTime = startTime;
-      let lastUpdateNonce = 0;
 
-      function updateETA() {
-        const currentTime = Date.now();
-        const elapsedTime = (currentTime - lastUpdateTime) / 1000; // 秒
-        const totalElapsedTime = (currentTime - startTime) / 1000; // 总秒数
-        const hashesSinceLastUpdate = nonce - lastUpdateNonce;
-        const hashRate = hashesSinceLastUpdate / elapsedTime;
-        const averageHashRate = nonce / totalElapsedTime;
-        const estimatedTimeRemaining = (difficulty - nonce) / hashRate;
-
-        const etaDate = new Date(currentTime + estimatedTimeRemaining * 1000);
-        statusText.textContent = `尝试次数: ${nonce.toLocaleString()}`;
-        etaText.textContent = `预计完成时间: ${etaDate.toLocaleTimeString()}`;
-        etaText.title = `当前哈希率: ${hashRate.toFixed(2)} H/s, 平均哈希率: ${averageHashRate.toFixed(2)} H/s`;
-
-        lastUpdateTime = currentTime;
-        lastUpdateNonce = nonce;
+      if (worker) {
+        worker.terminate();
       }
 
-      function mine() {
-        const batchSize = 10000;
-        for (let i = 0; i < batchSize; i++) {
-          const hash = sha256(data + nonce);
-          const hashValue = BigInt('0x' + hash);
-          if (hashValue <= target) {
-            const endTime = Date.now();
-            const duration = (endTime - startTime) / 1000; // 转换为秒
-            progressBar.style.display = 'none';
-            statusText.textContent = `工作量证明完成! 用时: ${duration.toFixed(2)}秒`;
-            etaText.textContent = "";
-            nonceText.textContent = `Nonce: ${nonce.toLocaleString()}`;
-            hashText.textContent = `Hash: ${hash}`;
-            startBtn.textContent = '继续';
-            startBtn.classList.remove('mdui-color-theme-accent');
-            startBtn.classList.add('mdui-color-green');
-            startBtn.disabled = false;
-            startBtn.onclick = () => {
-              window.location.href = 'https://dqjl.eu.org';
-            };
-            clearInterval(etaInterval);
-            return;
-          } else {
-            nonce++;
-          }
+      worker = new Worker('minerWorker.js');
+      worker.postMessage({ difficulty });
+
+      worker.onmessage = function (e) {
+        const data = e.data;
+
+        if (data.type === 'progress') {
+          statusText.textContent = `尝试次数: ${data.nonce.toLocaleString()}`;
+          etaText.textContent = `预计完成时间: ${data.eta}`;
+          etaText.title = `当前哈希率: ${data.hashRate.toFixed(2)} H/s, 平均哈希率: ${data.averageHashRate.toFixed(2)} H/s`;
         }
-        // 继续挖矿
-        setTimeout(mine, 0);
+
+        if (data.type === 'result') {
+          mining = false;
+          progressBar.style.display = 'none';
+          statusText.textContent = `工作量证明完成! 用时: ${data.duration.toFixed(2)}秒`;
+          etaText.textContent = "";
+          nonceText.textContent = `Nonce: ${data.nonce.toLocaleString()}`;
+          hashText.textContent = `Hash: ${data.hash}`;
+          startBtn.textContent = '继续';
+          startBtn.classList.remove('mdui-color-theme-accent');
+          startBtn.classList.add('mdui-color-green');
+          startBtn.disabled = false;
+          pauseBtn.style.display = 'none';
+
+          startBtn.onclick = () => {
+            window.location.href = 'https://dqjl.eu.org';
+          };
+        }
+      };
+    }
+
+    function pauseOrResume() {
+      if (!mining) return;
+
+      if (!paused) {
+        worker.postMessage({ action: 'pause' });
+        paused = true;
+        pauseBtn.textContent = '继续';
+        statusText.textContent = '已暂停';
+      } else {
+        worker.postMessage({ action: 'resume' });
+        paused = false;
+        pauseBtn.textContent = '暂停';
+        statusText.textContent = '正在进行工作量证明...';
       }
-
-      // 开始挖矿
-      mine();
-
-      // 每秒更新一次ETA
-      const etaInterval = setInterval(updateETA, 1000);
     }
   </script>
 </body>
