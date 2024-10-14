@@ -21,12 +21,12 @@
     <div class="mdui-card" style="width: 400px;">
       <div class="mdui-card-primary">
         <div class="mdui-card-primary-title">帮助我们战胜机器人</div>
-        <div class="mdui-card-primary-subtitle">Nightly 1 | 使用PoW工作量证明确认你是人类</div>
+        <div class="mdui-card-primary-subtitle">使用PoW工作量证明确认你是人类</div>
       </div>
       <div class="mdui-card-content">
         <div class="mdui-textfield">
-          <input class="mdui-textfield-input" type="text" id="dataInput"
-            placeholder="[Nightly ONLY]输入数据（默认：Hello World）" />
+          <input class="mdui-textfield-input" type="number" id="difficultyInput"
+            placeholder="难度（大于0的数字，默认：100000）" min="1" step="1" value="100000" />
         </div>
         <div class="mdui-progress">
           <div id="progress" class="mdui-progress-indeterminate" style="display: none;"></div>
@@ -52,7 +52,7 @@
     const etaText = document.getElementById('eta');
     const nonceText = document.getElementById('nonce');
     const hashText = document.getElementById('hash');
-    const dataInput = document.getElementById('dataInput');
+    const difficultyInput = document.getElementById('difficultyInput');
 
     startBtn.addEventListener('click', startProofOfWork);
 
@@ -64,41 +64,28 @@
       nonceText.textContent = "";
       hashText.textContent = "";
 
-      const data = dataInput.value || "Hello World";
+      const data = "灯确吉L"; // 固定的数据
+      const difficulty = parseFloat(difficultyInput.value) || 100000;
+      const maxTarget = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"); // 2^256 - 1
+      const target = maxTarget / BigInt(difficulty);
       let nonce = 0;
-      let difficulty = 1; // 初始难度
-      const targetTime = 60; // 目标时间为60秒
       const startTime = Date.now();
       let lastUpdateTime = startTime;
       let lastUpdateNonce = 0;
-      let hashRate = 0;
 
-      function updateDifficulty() {
-        const currentTime = Date.now();
-        const elapsedTime = (currentTime - startTime) / 1000; // 总共经过的秒数
-        const hashesComputed = nonce;
-        hashRate = hashesComputed / elapsedTime; // 平均哈希率
-
-        // 根据哈希率和目标时间调整难度
-        const expectedHashes = hashRate * targetTime;
-        difficulty = Math.max(1, Math.floor(Math.log(expectedHashes) / Math.log(16)));
-
-        // 更新目标
-        target = "0".repeat(difficulty);
-
-        // 更新显示
-        etaText.textContent = `当前难度: ${difficulty}`;
-        etaText.title = `平均哈希率: ${hashRate.toFixed(2)} H/s`;
-      }
-
-      function updateStatus() {
+      function updateETA() {
         const currentTime = Date.now();
         const elapsedTime = (currentTime - lastUpdateTime) / 1000; // 秒
+        const totalElapsedTime = (currentTime - startTime) / 1000; // 总秒数
         const hashesSinceLastUpdate = nonce - lastUpdateNonce;
-        const currentHashRate = hashesSinceLastUpdate / elapsedTime;
+        const hashRate = hashesSinceLastUpdate / elapsedTime;
+        const averageHashRate = nonce / totalElapsedTime;
+        const estimatedTimeRemaining = (difficulty - nonce) / hashRate;
 
+        const etaDate = new Date(currentTime + estimatedTimeRemaining * 1000);
         statusText.textContent = `尝试次数: ${nonce.toLocaleString()}`;
-        nonceText.textContent = `当前哈希率: ${currentHashRate.toFixed(2)} H/s`;
+        etaText.textContent = `预计完成时间: ${etaDate.toLocaleTimeString()}`;
+        etaText.title = `当前哈希率: ${hashRate.toFixed(2)} H/s, 平均哈希率: ${averageHashRate.toFixed(2)} H/s`;
 
         lastUpdateTime = currentTime;
         lastUpdateNonce = nonce;
@@ -108,7 +95,8 @@
         const batchSize = 10000;
         for (let i = 0; i < batchSize; i++) {
           const hash = sha256(data + nonce);
-          if (hash.startsWith(target)) {
+          const hashValue = BigInt('0x' + hash);
+          if (hashValue <= target) {
             const endTime = Date.now();
             const duration = (endTime - startTime) / 1000; // 转换为秒
             progressBar.style.display = 'none';
@@ -123,8 +111,7 @@
             startBtn.onclick = () => {
               window.location.href = 'https://dqjl.eu.org';
             };
-            clearInterval(statusInterval);
-            clearInterval(difficultyInterval);
+            clearInterval(etaInterval);
             return;
           } else {
             nonce++;
@@ -135,14 +122,10 @@
       }
 
       // 开始挖矿
-      let target = "0".repeat(difficulty);
       mine();
 
-      // 每秒更新状态
-      const statusInterval = setInterval(updateStatus, 1000);
-
-      // 每5秒调整一次难度
-      const difficultyInterval = setInterval(updateDifficulty, 5000);
+      // 每秒更新一次ETA
+      const etaInterval = setInterval(updateETA, 1000);
     }
   </script>
 </body>
