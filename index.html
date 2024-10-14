@@ -21,16 +21,12 @@
     <div class="mdui-card" style="width: 400px;">
       <div class="mdui-card-primary">
         <div class="mdui-card-primary-title">帮助我们战胜机器人</div>
-        <div class="mdui-card-primary-subtitle">Nightly | 使用PoW工作量证明确认你是人类</div>
+        <div class="mdui-card-primary-subtitle">Nightly 1 | 使用PoW工作量证明确认你是人类</div>
       </div>
       <div class="mdui-card-content">
         <div class="mdui-textfield">
           <input class="mdui-textfield-input" type="text" id="dataInput"
             placeholder="[Nightly ONLY]输入数据（默认：Hello World）" />
-        </div>
-        <div class="mdui-textfield">
-          <input class="mdui-textfield-input" type="number" id="difficultyInput"
-            placeholder="[Nightly ONLY]难度（1-8，默认：4）" min="1" max="8" value="4" />
         </div>
         <div class="mdui-progress">
           <div id="progress" class="mdui-progress-indeterminate" style="display: none;"></div>
@@ -57,7 +53,6 @@
     const nonceText = document.getElementById('nonce');
     const hashText = document.getElementById('hash');
     const dataInput = document.getElementById('dataInput');
-    const difficultyInput = document.getElementById('difficultyInput');
 
     startBtn.addEventListener('click', startProofOfWork);
 
@@ -70,27 +65,40 @@
       hashText.textContent = "";
 
       const data = dataInput.value || "Hello World";
-      const difficulty = parseInt(difficultyInput.value) || 4;
-      const target = "0".repeat(difficulty);
       let nonce = 0;
+      let difficulty = 1; // 初始难度
+      const targetTime = 60; // 目标时间为60秒
       const startTime = Date.now();
       let lastUpdateTime = startTime;
       let lastUpdateNonce = 0;
+      let hashRate = 0;
 
-      function updateETA() {
+      function updateDifficulty() {
+        const currentTime = Date.now();
+        const elapsedTime = (currentTime - startTime) / 1000; // 总共经过的秒数
+        const hashesComputed = nonce;
+        hashRate = hashesComputed / elapsedTime; // 平均哈希率
+
+        // 根据哈希率和目标时间调整难度
+        const expectedHashes = hashRate * targetTime;
+        difficulty = Math.max(1, Math.floor(Math.log(expectedHashes) / Math.log(16)));
+
+        // 更新目标
+        target = "0".repeat(difficulty);
+
+        // 更新显示
+        etaText.textContent = `当前难度: ${difficulty}`;
+        etaText.title = `平均哈希率: ${hashRate.toFixed(2)} H/s`;
+      }
+
+      function updateStatus() {
         const currentTime = Date.now();
         const elapsedTime = (currentTime - lastUpdateTime) / 1000; // 秒
-        const totalElapsedTime = (currentTime - startTime) / 1000; // 总秒数
         const hashesSinceLastUpdate = nonce - lastUpdateNonce;
-        const hashRate = hashesSinceLastUpdate / elapsedTime;
-        const averageHashRate = nonce / totalElapsedTime;
-        const remainingHashes = Math.pow(16, difficulty) - nonce;
-        const estimatedTimeRemaining = remainingHashes / hashRate;
+        const currentHashRate = hashesSinceLastUpdate / elapsedTime;
 
-        const etaDate = new Date(currentTime + estimatedTimeRemaining * 1000);
         statusText.textContent = `尝试次数: ${nonce.toLocaleString()}`;
-        etaText.textContent = `预计完成时间: ${etaDate.toLocaleTimeString()}`;
-        etaText.title = `当前哈希率: ${hashRate.toFixed(2)} H/s, 平均哈希率: ${averageHashRate.toFixed(2)} H/s`;
+        nonceText.textContent = `当前哈希率: ${currentHashRate.toFixed(2)} H/s`;
 
         lastUpdateTime = currentTime;
         lastUpdateNonce = nonce;
@@ -115,7 +123,8 @@
             startBtn.onclick = () => {
               window.location.href = 'https://dqjl.eu.org';
             };
-            clearInterval(etaInterval);
+            clearInterval(statusInterval);
+            clearInterval(difficultyInterval);
             return;
           } else {
             nonce++;
@@ -126,10 +135,14 @@
       }
 
       // 开始挖矿
+      let target = "0".repeat(difficulty);
       mine();
 
-      // 每秒更新一次ETA
-      const etaInterval = setInterval(updateETA, 1000);
+      // 每秒更新状态
+      const statusInterval = setInterval(updateStatus, 1000);
+
+      // 每5秒调整一次难度
+      const difficultyInterval = setInterval(updateDifficulty, 5000);
     }
   </script>
 </body>
